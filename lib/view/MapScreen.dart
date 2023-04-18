@@ -1,7 +1,5 @@
 // ignore_for_file: file_names, must_be_immutable
-import 'dart:developer';
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -9,14 +7,24 @@ import '../components/MyComponent.dart';
 import '../components/TextStyle.dart';
 import 'package:flutter_osm_plugin/flutter_osm_plugin.dart';
 
-class MapScreen extends StatelessWidget {
-  MapScreen({super.key});
+class MapScreen extends StatefulWidget {
+  const MapScreen({super.key});
+
+  @override
+  State<MapScreen> createState() => _MapScreenState();
+}
+
+class _MapScreenState extends State<MapScreen> {
   RxInt selectedIndex = 0.obs;
+
   List<GeoPoint> geoPoints = [];
+
   MapController mapController = MapController(
     initMapWithUserPosition: true,
-    // initPosition: GeoPoint(latitude: 35.3080232175, longitude: 59.4986211973),
   );
+
+  RxString distance = 'در حال محاسبه مسافت ...'.obs;
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -26,7 +34,8 @@ class MapScreen extends StatelessWidget {
         floatingActionButton: MyFloatingActionButton(
             mapController: mapController,
             geoPoints: geoPoints,
-            selectedIndex: selectedIndex),
+            selectedIndex: selectedIndex,
+            distance: distance),
         body: Stack(
           children: [
             //map screen
@@ -43,7 +52,7 @@ class MapScreen extends StatelessWidget {
                 stepZoom: 1,
                 markerOption: MarkerOption(
                   advancedPickerMarker: MarkerIcon(
-                    iconWidget: Obx(() => markerIcones[selectedIndex.value]),
+                    iconWidget: Obx(() => markerIcons[selectedIndex.value]),
                   ),
                 ),
               ),
@@ -52,9 +61,11 @@ class MapScreen extends StatelessWidget {
             MyBackButton(
                 selectedIndex: selectedIndex,
                 mapController: mapController,
-                geoPoints: geoPoints),
+                geoPoints: geoPoints,
+                distance: distance),
 
             Obx(
+              // distance and address container
               () => Positioned(
                 bottom: Get.height * 0.1,
                 left: Get.width * 0.05,
@@ -62,31 +73,64 @@ class MapScreen extends StatelessWidget {
                 child: selectedIndex.value == buttonTitles.length - 1
                     ? Column(
                         children: [
-                          TextField(
-                            decoration: InputDecoration(
-                                border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(10)),
-                                filled: true,
-                                fillColor: Colors.white,
-                                hintText: 'فاصله مبدا تا مقصد',
-                                prefixIcon: const Icon(
-                                  Icons.social_distance_rounded,
-                                  color: Colors.green,
-                                )),
+                          Container(
+                            width: Get.width,
+                            height: Get.height * .075,
+                            decoration: BoxDecoration(
+                                color: Colors.white,
+                                border:
+                                    Border.all(color: Colors.black, width: .75),
+                                borderRadius: BorderRadius.circular(10)),
+                            child: Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 10),
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.social_distance_rounded,
+                                    color: Colors.green,
+                                  ),
+                                  const SizedBox(
+                                    width: 10,
+                                  ),
+                                  Text(
+                                    distance.value,
+                                    style: MyTextStyle.bottun
+                                        .copyWith(color: Colors.grey),
+                                  )
+                                ],
+                              ),
+                            ),
                           ),
                           const SizedBox(
                             height: 10,
                           ),
-                          TextField(
-                            decoration: InputDecoration(
-                              border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(10)),
-                              filled: true,
-                              fillColor: Colors.white,
-                              hintText: 'آدرس مقصد',
-                              prefixIcon: const Icon(
-                                Icons.square_outlined,
-                                color: Colors.green,
+                          Container(
+                            width: Get.width,
+                            height: Get.height * .075,
+                            decoration: BoxDecoration(
+                                color: Colors.white,
+                                border:
+                                    Border.all(color: Colors.black, width: .75),
+                                borderRadius: BorderRadius.circular(10)),
+                            child: Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 10),
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.square_outlined,
+                                    color: Colors.green,
+                                  ),
+                                  const SizedBox(
+                                    width: 10,
+                                  ),
+                                  Text(
+                                    'آدرس مقصد',
+                                    style: MyTextStyle.bottun
+                                        .copyWith(color: Colors.grey),
+                                  )
+                                ],
                               ),
                             ),
                           ),
@@ -108,11 +152,13 @@ class MyFloatingActionButton extends StatelessWidget {
     required this.mapController,
     required this.geoPoints,
     required this.selectedIndex,
+    required this.distance,
   });
 
   final MapController mapController;
   final List<GeoPoint> geoPoints;
   final RxInt selectedIndex;
+  final RxString distance;
 
   @override
   Widget build(BuildContext context) {
@@ -122,16 +168,38 @@ class MyFloatingActionButton extends StatelessWidget {
       child: Obx(
         () => FloatingActionButton(
           onPressed: () async {
-            GeoPoint chooseGeoPoint =
-                await mapController.getCurrentPositionAdvancedPositionPicker();
-            geoPoints.add(chooseGeoPoint);
-            log(geoPoints.last.latitude.toString());
-            mapController.init();
             selectedIndex.value++;
             if (selectedIndex.value > buttonTitles.length - 1) {
               selectedIndex.value = buttonTitles.length - 1;
             }
-            log(selectedIndex.value.toString());
+            if (selectedIndex.value < buttonTitles.length - 1) {
+              mapController.init();
+            }
+            await mapController
+                .getCurrentPositionAdvancedPositionPicker()
+                .then((value) => geoPoints.add(value));
+            if (selectedIndex.value == buttonTitles.length - 1) {
+              await mapController.zoomOut();
+              mapController.cancelAdvancedPositionPicker();
+
+              await mapController.addMarker(geoPoints.last,
+                  markerIcon: MarkerIcon(
+                    iconWidget: markerIcons[1],
+                  ));
+              await mapController.addMarker(geoPoints.first,
+                  markerIcon: MarkerIcon(
+                    iconWidget: markerIcons[0],
+                  ));
+            }
+            distance2point(geoPoints.first, geoPoints.last).then((value) {
+              if (value < 1000) {
+                distance.value =
+                    'فاصله مبدا تا مقصد ${value.toInt().toString()} متر';
+              } else {
+                distance.value =
+                    'فاصله مبدا تا مقصد ${(value / 1000).toStringAsFixed(1)} کیلومتر';
+              }
+            });
           },
           backgroundColor: const Color.fromARGB(255, 2, 207, 36),
           foregroundColor: Colors.white,
