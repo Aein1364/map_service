@@ -1,14 +1,21 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_osm_plugin/flutter_osm_plugin.dart';
 import 'package:get/get.dart';
+import 'package:map_service/gen/assets.gen.dart';
 
 class MyBackButton extends StatelessWidget {
   const MyBackButton({
     super.key,
     required this.selectedIndex,
+    required this.mapController,
+    required this.geoPoints,
   });
 
   final RxInt selectedIndex;
-
+  final MapController mapController;
+  final List<GeoPoint> geoPoints;
   @override
   Widget build(BuildContext context) {
     return Positioned(
@@ -16,6 +23,12 @@ class MyBackButton extends StatelessWidget {
       left: 20,
       child: GestureDetector(
         onTap: () {
+          mapController.init();
+          if (geoPoints.isNotEmpty) {
+            log(geoPoints.last.latitude.toString());
+            geoPoints.removeLast();
+          }
+
           selectedIndex.value--;
           if (selectedIndex.value < 0) {
             selectedIndex.value = 0;
@@ -45,26 +58,17 @@ class MyBackButton extends StatelessWidget {
   }
 }
 
-List<Widget> mapStateList = [
-  Container(
-    width: double.infinity,
-    height: double.infinity,
-    color: Colors.blue,
-  ),
-  Container(
-    width: double.infinity,
-    height: double.infinity,
-    color: Colors.red,
-  ),
-  Container(
-    width: double.infinity,
-    height: double.infinity,
-    color: Colors.amber,
-  ),
-];
-
-List<String> bottunTitle = [
+List<String> buttonTitles = [
   'انتخاب مبدا',
   'انتخاب مقصد',
   'درخواست راننده',
+];
+
+List<Widget> markerIcones = [
+  Assets.icons.origin.svg(height: 150, width: 60),
+  Assets.icons.destination.svg(height: 150, width: 60),
+  SizedBox(
+    width: 1,
+    height: 1,
+  )
 ];
