@@ -3,9 +3,11 @@
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../components/MyComponent.dart';
+import '../components/Variables.dart';
 import '../components/TextStyle.dart';
 import 'package:flutter_osm_plugin/flutter_osm_plugin.dart';
+
+import '../components/widgets.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -15,10 +17,6 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
-  RxInt selectedIndex = 0.obs;
-
-  List<GeoPoint> geoPoints = [];
-
   MapController mapController = MapController(
     initMapWithUserPosition: true,
   );
@@ -32,10 +30,11 @@ class _MapScreenState extends State<MapScreen> {
         floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
         //button for next step
         floatingActionButton: MyFloatingActionButton(
-            mapController: mapController,
-            geoPoints: geoPoints,
-            selectedIndex: selectedIndex,
-            distance: distance),
+          mapController: mapController,
+          geoPoints: geoPoints,
+          selectedIndex: selectedIndex,
+          distance: distance,
+        ),
         body: Stack(
           children: [
             //map screen
@@ -70,70 +69,23 @@ class _MapScreenState extends State<MapScreen> {
                 bottom: Get.height * 0.1,
                 left: Get.width * 0.05,
                 right: Get.width * 0.05,
-                child: selectedIndex.value == buttonTitles.length - 1
+                child: selectedIndex.value == routingState.length - 1
                     ? Column(
                         children: [
-                          Container(
-                            width: Get.width,
-                            height: Get.height * .075,
-                            decoration: BoxDecoration(
-                                color: Colors.white,
-                                border:
-                                    Border.all(color: Colors.black, width: .75),
-                                borderRadius: BorderRadius.circular(10)),
-                            child: Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 10),
-                              child: Row(
-                                children: [
-                                  const Icon(
-                                    Icons.social_distance_rounded,
-                                    color: Colors.green,
-                                  ),
-                                  const SizedBox(
-                                    width: 10,
-                                  ),
-                                  Text(
-                                    distance.value,
-                                    style: MyTextStyle.bottun
-                                        .copyWith(color: Colors.grey),
-                                  )
-                                ],
-                              ),
-                            ),
-                          ),
+                          distanceAddressContainer(
+                              title: distance.value,
+                              icon: Icons.social_distance_rounded),
                           const SizedBox(
                             height: 10,
                           ),
-                          Container(
-                            width: Get.width,
-                            height: Get.height * .075,
-                            decoration: BoxDecoration(
-                                color: Colors.white,
-                                border:
-                                    Border.all(color: Colors.black, width: .75),
-                                borderRadius: BorderRadius.circular(10)),
-                            child: Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 10),
-                              child: Row(
-                                children: [
-                                  const Icon(
-                                    Icons.square_outlined,
-                                    color: Colors.green,
-                                  ),
-                                  const SizedBox(
-                                    width: 10,
-                                  ),
-                                  Text(
-                                    'آدرس مقصد',
-                                    style: MyTextStyle.bottun
-                                        .copyWith(color: Colors.grey),
-                                  )
-                                ],
-                              ),
-                            ),
+                          distanceAddressContainer(
+                              title: origin.value, icon: Icons.square_outlined),
+                          const SizedBox(
+                            height: 10,
                           ),
+                          distanceAddressContainer(
+                              title: destination.value,
+                              icon: Icons.square_outlined),
                         ],
                       )
                     : Container(),
@@ -144,71 +96,33 @@ class _MapScreenState extends State<MapScreen> {
       ),
     );
   }
-}
 
-class MyFloatingActionButton extends StatelessWidget {
-  const MyFloatingActionButton({
-    super.key,
-    required this.mapController,
-    required this.geoPoints,
-    required this.selectedIndex,
-    required this.distance,
-  });
-
-  final MapController mapController;
-  final List<GeoPoint> geoPoints;
-  final RxInt selectedIndex;
-  final RxString distance;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: Get.width * 0.9,
-      height: Get.height * 0.07,
-      child: Obx(
-        () => FloatingActionButton(
-          onPressed: () async {
-            selectedIndex.value++;
-            if (selectedIndex.value > buttonTitles.length - 1) {
-              selectedIndex.value = buttonTitles.length - 1;
-            }
-            if (selectedIndex.value < buttonTitles.length - 1) {
-              mapController.init();
-            }
-            await mapController
-                .getCurrentPositionAdvancedPositionPicker()
-                .then((value) => geoPoints.add(value));
-            if (selectedIndex.value == buttonTitles.length - 1) {
-              await mapController.zoomOut();
-              mapController.cancelAdvancedPositionPicker();
-
-              await mapController.addMarker(geoPoints.last,
-                  markerIcon: MarkerIcon(
-                    iconWidget: markerIcons[1],
-                  ));
-              await mapController.addMarker(geoPoints.first,
-                  markerIcon: MarkerIcon(
-                    iconWidget: markerIcons[0],
-                  ));
-            }
-            distance2point(geoPoints.first, geoPoints.last).then((value) {
-              if (value < 1000) {
-                distance.value =
-                    'فاصله مبدا تا مقصد ${value.toInt().toString()} متر';
-              } else {
-                distance.value =
-                    'فاصله مبدا تا مقصد ${(value / 1000).toStringAsFixed(1)} کیلومتر';
-              }
-            });
-          },
-          backgroundColor: const Color.fromARGB(255, 2, 207, 36),
-          foregroundColor: Colors.white,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          child: Text(
-            buttonTitles[selectedIndex.value],
-            style: MyTextStyle.bottun,
-          ),
+  Widget distanceAddressContainer(
+      {required String title, required IconData icon}) {
+    return Container(
+      width: Get.width,
+      height: Get.height * .075,
+      decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(color: Colors.black, width: .75),
+          borderRadius: BorderRadius.circular(10)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              color: Colors.green,
+            ),
+            const SizedBox(
+              width: 10,
+            ),
+            Text(
+              title,
+              style:
+                  MyTextStyle.button.copyWith(color: Colors.grey, fontSize: 12),
+            )
+          ],
         ),
       ),
     );
